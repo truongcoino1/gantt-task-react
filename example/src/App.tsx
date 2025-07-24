@@ -1,7 +1,7 @@
 import React from "react";
-import { Task, ViewMode, Gantt } from "gantt-task-react";
+import { Task, ViewMode, Gantt, TaskOrEmpty } from "gantt-task-react";
 import { ViewSwitcher } from "./components/view-switcher";
-import { getStartEndDateForProject, initTasks } from "./helper";
+import { initTasks } from "./helper";
 import "gantt-task-react/dist/style.css";
 
 // Init
@@ -9,40 +9,31 @@ const App = () => {
   const [view, setView] = React.useState<ViewMode>(ViewMode.Day);
   const [tasks, setTasks] = React.useState<Task[]>(initTasks());
   const [isChecked, setIsChecked] = React.useState(true);
-  let columnWidth = 65;
+
   if (view === ViewMode.Year) {
-    columnWidth = 350;
+
   } else if (view === ViewMode.Month) {
-    columnWidth = 300;
+
   } else if (view === ViewMode.Week) {
-    columnWidth = 250;
+
   }
 
-  const handleTaskChange = (task: Task) => {
+  const handleTaskChange = (task: TaskOrEmpty) => {
     console.log("On date change Id:" + task.id);
     let newTasks = tasks.map(t => (t.id === task.id ? task : t));
-    if (task.project) {
-      const [start, end] = getStartEndDateForProject(newTasks, task.project);
-      const project = newTasks[newTasks.findIndex(t => t.id === task.project)];
-      if (
-        project.start.getTime() !== start.getTime() ||
-        project.end.getTime() !== end.getTime()
-      ) {
-        const changedProject = { ...project, start, end };
-        newTasks = newTasks.map(t =>
-          t.id === task.project ? changedProject : t
-        );
-      }
-    }
-    setTasks(newTasks);
+
+    setTasks(newTasks.filter(t => t.type !== "empty") as Task[]);
   };
 
-  const handleTaskDelete = (task: Task) => {
-    const conf = window.confirm("Are you sure about " + task.name + " ?");
+  const handleTaskDelete = (
+    tasksToDelete: readonly TaskOrEmpty[],
+  ) => {
+    const taskNames = tasksToDelete.map(t => t.name).join(", ");
+    const conf = window.confirm("Are you sure about " + taskNames + " ?");
     if (conf) {
-      setTasks(tasks.filter(t => t.id !== task.id));
+      const taskIdsToDelete = new Set(tasksToDelete.map(t => t.id));
+      setTasks(tasks.filter(t => !taskIdsToDelete.has(t.id)));
     }
-    return conf;
   };
 
   const handleProgressChange = async (task: Task) => {
@@ -54,18 +45,10 @@ const App = () => {
     alert("On Double Click event Id:" + task.id);
   };
 
-  const handleClick = (task: Task) => {
+  const handleClick = (task: TaskOrEmpty) => {
     console.log("On Click event Id:" + task.id);
   };
 
-  const handleSelect = (task: Task, isSelected: boolean) => {
-    console.log(task.name + " has " + (isSelected ? "selected" : "unselected"));
-  };
-
-  const handleExpanderClick = (task: Task) => {
-    setTasks(tasks.map(t => (t.id === task.id ? task : t)));
-    console.log("On expander click Id:" + task.id);
-  };
 
   return (
     <div className="Wrapper">
@@ -78,15 +61,15 @@ const App = () => {
       <Gantt
         tasks={tasks}
         viewMode={view}
-        onDateChange={handleTaskChange}
+
+        onDateChange={(value) => {
+          handleTaskChange(value as Task);
+        }}
         onDelete={handleTaskDelete}
         onProgressChange={handleProgressChange}
         onDoubleClick={handleDblClick}
         onClick={handleClick}
-        onSelect={handleSelect}
-        onExpanderClick={handleExpanderClick}
-        listCellWidth={isChecked ? "155px" : ""}
-        columnWidth={columnWidth}
+
       />
       <h3>Gantt With Limited Height</h3>
       <Gantt
@@ -97,11 +80,6 @@ const App = () => {
         onProgressChange={handleProgressChange}
         onDoubleClick={handleDblClick}
         onClick={handleClick}
-        onSelect={handleSelect}
-        onExpanderClick={handleExpanderClick}
-        listCellWidth={isChecked ? "155px" : ""}
-        ganttHeight={300}
-        columnWidth={columnWidth}
       />
     </div>
   );
